@@ -5,7 +5,16 @@ import { config } from './config.js';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Initialize Supabase client
-const supabase = createClient(config.supabase.url, config.supabase.anonKey);
+let supabase;
+try {
+    if (!config.supabase.url || config.supabase.url.includes("YOUR_SUPABASE_URL")) {
+        console.warn("Supabase URL is missing or using placeholder. Database features will be disabled.");
+    } else {
+        supabase = createClient(config.supabase.url, config.supabase.anonKey);
+    }
+} catch (e) {
+    console.error("Failed to initialize Supabase:", e);
+}
 
 // ============================================
 // USER OPERATIONS
