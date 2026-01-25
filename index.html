@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sunder - A modern social media platform">
+  <title>Sunder</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- App Container -->
+  <div id="app">
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen">
+      <div class="login-container">
+        <h1 class="logo">Sunder</h1>
+        <p class="tagline">Connect. Share. Discover.</p>
+        <button id="google-signin-btn" class="btn btn-google">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+            <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+          </svg>
+          Sign in with Google
+        </button>
+      </div>
+    </div>
+
+    <!-- Username Selection Screen -->
+    <div id="username-screen" class="screen hidden">
+      <div class="username-container">
+        <h2>Choose your username</h2>
+        <p>This will be your unique identifier on Sunder</p>
+        <div class="input-group">
+          <span class="input-prefix">@</span>
+          <input type="text" id="username-input" placeholder="username" maxlength="20" pattern="[a-zA-Z0-9_]+">
+        </div>
+        <p id="username-error" class="error-text hidden"></p>
+        <p id="username-success" class="success-text hidden">Username available!</p>
+        <button id="username-submit-btn" class="btn btn-primary" disabled>Continue</button>
+      </div>
+    </div>
+
+    <!-- Main App Screen -->
+    <div id="main-screen" class="screen hidden">
+      <!-- Top Navigation Bar -->
+      <nav class="top-bar">
+        <h1 class="nav-logo">Sunder</h1>
+        <div class="nav-links">
+          <button id="nav-home" class="nav-btn active">Home</button>
+          <button id="nav-profile" class="nav-btn">Profile</button>
+          <button id="nav-logout" class="nav-btn">Logout</button>
+        </div>
+      </nav>
+
+      <!-- New Posts Notification -->
+      <div id="new-posts-banner" class="new-posts-banner hidden">
+        <button id="load-new-posts-btn">New posts available! Click to refresh</button>
+      </div>
+
+      <!-- Home Feed -->
+      <div id="home-view" class="view">
+        <div class="post-composer">
+          <textarea id="post-content" placeholder="What's on your mind?" maxlength="500"></textarea>
+          <button id="post-submit-btn" class="btn btn-primary">Post</button>
+        </div>
+        <div id="posts-feed" class="posts-feed">
+          <!-- Posts will be loaded here -->
+        </div>
+      </div>
+
+      <!-- Profile View -->
+      <div id="profile-view" class="view hidden">
+        <div class="profile-header">
+          <div id="profile-banner" class="profile-banner">
+            <button id="edit-banner-btn" class="edit-btn hidden">Edit Banner</button>
+            <input type="file" id="banner-input" accept="image/*" class="hidden">
+          </div>
+          <div class="profile-info">
+            <div class="avatar-container">
+              <img id="profile-avatar" src="" alt="Profile Picture" class="profile-avatar">
+              <button id="edit-avatar-btn" class="edit-btn hidden">Edit</button>
+              <input type="file" id="avatar-input" accept="image/*" class="hidden">
+            </div>
+            <h2 id="profile-display-name" class="profile-name"></h2>
+            <p id="profile-username" class="profile-username"></p>
+            <p id="profile-bio" class="profile-bio"></p>
+            <button id="edit-bio-btn" class="btn btn-secondary hidden">Edit Bio</button>
+            <button id="follow-btn" class="btn btn-primary hidden">Follow</button>
+            <div class="profile-stats">
+              <span id="followers-count">0 Followers</span>
+              <span id="following-count">0 Following</span>
+            </div>
+          </div>
+        </div>
+        <div id="profile-posts" class="posts-feed">
+          <!-- User's posts will be loaded here -->
+        </div>
+      </div>
+
+      <!-- Bio Edit Modal -->
+      <div id="bio-modal" class="modal hidden">
+        <div class="modal-content">
+          <h3>Edit Bio</h3>
+          <textarea id="bio-input" placeholder="Tell us about yourself..." maxlength="160"></textarea>
+          <div class="modal-actions">
+            <button id="bio-cancel-btn" class="btn btn-secondary">Cancel</button>
+            <button id="bio-save-btn" class="btn btn-primary">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reply Modal -->
+      <div id="reply-modal" class="modal hidden">
+        <div class="modal-content">
+          <h3>Reply</h3>
+          <div id="reply-original-post" class="original-post"></div>
+          <textarea id="reply-content" placeholder="Write your reply..." maxlength="500"></textarea>
+          <div class="modal-actions">
+            <button id="reply-cancel-btn" class="btn btn-secondary">Cancel</button>
+            <button id="reply-submit-btn" class="btn btn-primary">Reply</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
