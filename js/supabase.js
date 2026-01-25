@@ -21,7 +21,7 @@ try {
 // ============================================
 
 /**
- * Get user by Firebase UID
+ * Get user by Firebase UID (with roles)
  * @param {string} firebaseUid - Firebase user ID
  * @returns {Promise<Object|null>} User object or null
  */
@@ -34,12 +34,18 @@ export async function getUserByFirebaseUid(firebaseUid) {
 
     if (error && error.code !== 'PGRST116') {
         console.error('Error fetching user:', error);
+        return null;
     }
+
+    if (data) {
+        data.roles = await getUserRoles(data.id);
+    }
+
     return data;
 }
 
 /**
- * Get user by username
+ * Get user by username (with roles)
  * @param {string} username - Username to lookup
  * @returns {Promise<Object|null>} User object or null
  */
@@ -52,12 +58,18 @@ export async function getUserByUsername(username) {
 
     if (error && error.code !== 'PGRST116') {
         console.error('Error fetching user by username:', error);
+        return null;
     }
+
+    if (data) {
+        data.roles = await getUserRoles(data.id);
+    }
+
     return data;
 }
 
 /**
- * Get user by ID
+ * Get user by ID (with roles)
  * @param {string} userId - User UUID
  * @returns {Promise<Object|null>} User object or null
  */
@@ -70,7 +82,13 @@ export async function getUserById(userId) {
 
     if (error) {
         console.error('Error fetching user by ID:', error);
+        return null;
     }
+
+    if (data) {
+        data.roles = await getUserRoles(data.id);
+    }
+
     return data;
 }
 
@@ -105,16 +123,20 @@ export async function createUser(userData) {
             username: userData.username.toLowerCase(),
             display_name: userData.displayName || userData.username,
             avatar_url: userData.avatarUrl || null,
-            bio: ''
+            bio: '',
+            is_verified: false,
+            is_suspended: false,
+            is_shadowbanned: false
         })
         .select()
         .single();
 
     if (error) {
         console.error('Error creating user:', error.message, error.details, error.hint);
-        alert('Table Error: ' + error.message);
         throw error;
     }
+
+    data.roles = [];
     return data;
 }
 
@@ -150,6 +172,7 @@ export async function searchUsers(query, limit = 10) {
         .from('users')
         .select('*')
         .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+        .eq('is_suspended', false)
         .limit(limit);
 
     if (error) {
@@ -176,54 +199,242 @@ export async function getAllUsers() {
     return data || [];
 }
 
-
 // ============================================
-// POST OPERATIONS
+// ROLE OPERATIONS
 // ============================================
 
 /**
- * Create a new post
- * @param {string} userId - User UUID
- * @param {string} content - Post content
- * @param {string|null} parentId - Parent post ID for replies
- * @returns {Promise<Object>} Created post
+ * Get all roles
+ * @returns {Promise<Array>} All roles sorted by priority
  */
-export async function createPost(userId, content, parentId = null) {
+export async function getAllRoles() {
     const { data, error } = await supabase
-        .from('posts')
+        .from('roles')
+        .select('*')
+        .order('priority', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching roles:', error);
+        return [];
+    }
+    return data || [];
+}
+
+/**
+ * Create a new role
+ * @param {Object} roleData - Role data
+ * @returns {Promise<Object>} Created role
+ */
+export async function createRole(roleData) {
+    const { data, error } = await supabase
+        .from('roles')
         .insert({
-            user_id: userId,
-            content: content,
-            parent_id: parentId
+            name: roleData.name,
+            abbreviation: roleData.abbreviation,
+            bg_color: roleData.bgColor || '#7c5cff',
+            text_color: roleData.textColor || '#ffffff',
+            priority: roleData.priority || 1
         })
-        .select(`
-      *,
-      user:users(id, username, display_name, avatar_url)
-    `)
+        .select()
         .single();
 
     if (error) {
-        console.error('Error creating post:', error);
+        console.error('Error creating role:', error);
         throw error;
     }
     return data;
 }
 
 /**
- * Get posts for feed (with user info and like counts)
+ * Update a role
+ * @param {string} roleId - Role UUID
+ * @param {Object} updates - Fields to update
+ * @returns {Promise<Object>} Updated role
+ */
+export async function updateRole(roleId, updates) {
+    const { data, error } = await supabase
+        .from('roles')
+        .update({
+            name: updates.name,
+            abbreviation: updates.abbreviation,
+            bg_color: updates.bgColor,
+            text_color: updates.textColor,
+            priority: updates.priority
+        })
+        .eq('id', roleId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating role:', error);
+        throw error;
+    }
+    return data;
+}
+
+/**
+ * Delete a role
+ * @param {string} roleId - Role UUID
+ */
+export async function deleteRole(roleId) {
+    const { error } = await supabase
+        .from('roles')
+        .delete()
+        .eq('id', roleId);
+
+    if (error) {
+        console.error('Error deleting role:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get roles for a specific user
+ * @param {string} userId - User UUID
+ * @returns {Promise<Array>} User's roles sorted by priority
+ */
+export async function getUserRoles(userId) {
+    const { data, error } = await supabase
+        .from('user_roles')
+        .select(`
+            role_id,
+            roles (id, name, abbreviation, bg_color, text_color, priority)
+        `)
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('Error fetching user roles:', error);
+        return [];
+    }
+
+    // Extract and sort roles by priority
+    const roles = data?.map(ur => ur.roles).filter(Boolean) || [];
+    return roles.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+}
+
+/**
+ * Assign a role to a user
+ * @param {string} userId - User UUID
+ * @param {string} roleId - Role UUID
+ */
+export async function assignRoleToUser(userId, roleId) {
+    const { error } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role_id: roleId });
+
+    if (error && error.code !== '23505') { // Ignore duplicate key error
+        console.error('Error assigning role:', error);
+        throw error;
+    }
+}
+
+/**
+ * Remove a role from a user
+ * @param {string} userId - User UUID
+ * @param {string} roleId - Role UUID
+ */
+export async function removeRoleFromUser(userId, roleId) {
+    const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role_id', roleId);
+
+    if (error) {
+        console.error('Error removing role:', error);
+        throw error;
+    }
+}
+
+// ============================================
+// POST OPERATIONS
+// ============================================
+
+/**
+ * Create a new post with optional images
+ * @param {string} userId - User UUID
+ * @param {string} content - Post content
+ * @param {string|null} parentId - Parent post ID for replies
+ * @param {Array<string>} images - Array of image URLs/base64
+ * @returns {Promise<Object>} Created post
+ */
+export async function createPost(userId, content, parentId = null, images = []) {
+    // Check if user is suspended
+    const user = await getUserById(userId);
+    if (user?.is_suspended) {
+        throw new Error('Your account is suspended');
+    }
+
+    const { data, error } = await supabase
+        .from('posts')
+        .insert({
+            user_id: userId,
+            content: content,
+            parent_id: parentId,
+            images: images.length > 0 ? images : null
+        })
+        .select(`
+            *,
+            user:users(id, username, display_name, avatar_url, is_verified, is_shadowbanned)
+        `)
+        .single();
+
+    if (error) {
+        console.error('Error creating post:', error);
+        throw error;
+    }
+
+    // Add roles to user
+    if (data.user) {
+        data.user.roles = await getUserRoles(data.user.id);
+    }
+
+    return data;
+}
+
+/**
+ * Update a post
+ * @param {string} postId - Post UUID
+ * @param {string} content - New content
+ * @param {Array<string>} images - New images array
+ * @returns {Promise<Object>} Updated post
+ */
+export async function updatePost(postId, content, images = null) {
+    const updates = { content };
+    if (images !== null) {
+        updates.images = images.length > 0 ? images : null;
+    }
+
+    const { data, error } = await supabase
+        .from('posts')
+        .update(updates)
+        .eq('id', postId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating post:', error);
+        throw error;
+    }
+    return data;
+}
+
+/**
+ * Get posts for feed (filters out shadowbanned users)
  * @param {number} limit - Number of posts to fetch
+ * @param {string|null} currentUserId - Current user ID (to show own posts even if shadowbanned)
  * @param {string|null} beforeId - For pagination
  * @returns {Promise<Array>} Posts array
  */
-export async function getFeedPosts(limit = 20, beforeId = null) {
+export async function getFeedPosts(limit = 20, currentUserId = null, beforeId = null) {
     let query = supabase
         .from('posts')
         .select(`
-      *,
-      user:users(id, username, display_name, avatar_url),
-      likes(user_id),
-      replies:posts(id)
-    `)
+            *,
+            user:users(id, username, display_name, avatar_url, is_verified, is_shadowbanned),
+            likes(user_id),
+            replies:posts(id)
+        `)
         .is('parent_id', null)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -246,7 +457,23 @@ export async function getFeedPosts(limit = 20, beforeId = null) {
         console.error('Error fetching posts:', error);
         return [];
     }
-    return data || [];
+
+    // Filter out shadowbanned users' posts (unless it's the current user's post)
+    let filteredPosts = data || [];
+    filteredPosts = filteredPosts.filter(post => {
+        if (!post.user) return false;
+        // Show post if user is not shadowbanned OR if it's the current user's post
+        return !post.user.is_shadowbanned || post.user.id === currentUserId;
+    });
+
+    // Add roles to each user
+    for (const post of filteredPosts) {
+        if (post.user) {
+            post.user.roles = await getUserRoles(post.user.id);
+        }
+    }
+
+    return filteredPosts;
 }
 
 /**
@@ -259,11 +486,11 @@ export async function getUserPosts(userId, limit = 20) {
     const { data, error } = await supabase
         .from('posts')
         .select(`
-      *,
-      user:users(id, username, display_name, avatar_url),
-      likes(user_id),
-      replies:posts(id)
-    `)
+            *,
+            user:users(id, username, display_name, avatar_url, is_verified, is_shadowbanned),
+            likes(user_id),
+            replies:posts(id)
+        `)
         .eq('user_id', userId)
         .is('parent_id', null)
         .order('created_at', { ascending: false })
@@ -273,6 +500,14 @@ export async function getUserPosts(userId, limit = 20) {
         console.error('Error fetching user posts:', error);
         return [];
     }
+
+    // Add roles to each user
+    for (const post of data || []) {
+        if (post.user) {
+            post.user.roles = await getUserRoles(post.user.id);
+        }
+    }
+
     return data || [];
 }
 
@@ -285,10 +520,10 @@ export async function getPostReplies(postId) {
     const { data, error } = await supabase
         .from('posts')
         .select(`
-      *,
-      user:users(id, username, display_name, avatar_url),
-      likes(user_id)
-    `)
+            *,
+            user:users(id, username, display_name, avatar_url, is_verified),
+            likes(user_id)
+        `)
         .eq('parent_id', postId)
         .order('created_at', { ascending: true });
 
@@ -296,6 +531,14 @@ export async function getPostReplies(postId) {
         console.error('Error fetching replies:', error);
         return [];
     }
+
+    // Add roles to each user
+    for (const post of data || []) {
+        if (post.user) {
+            post.user.roles = await getUserRoles(post.user.id);
+        }
+    }
+
     return data || [];
 }
 
@@ -329,7 +572,7 @@ export async function likePost(userId, postId) {
         .from('likes')
         .insert({ user_id: userId, post_id: postId });
 
-    if (error && error.code !== '23505') { // Ignore duplicate key error
+    if (error && error.code !== '23505') {
         console.error('Error liking post:', error);
         throw error;
     }
@@ -460,7 +703,7 @@ export async function getFollowingCount(userId) {
 /**
  * Subscribe to new posts
  * @param {Function} callback - Called when new post is created
- * @returns {Object} Subscription object with unsubscribe method
+ * @returns {Object} Subscription object
  */
 export function subscribeToNewPosts(callback) {
     const subscription = supabase
@@ -469,7 +712,7 @@ export function subscribeToNewPosts(callback) {
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'posts' },
             (payload) => {
-                if (!payload.new.parent_id) { // Only notify for top-level posts
+                if (!payload.new.parent_id) {
                     callback(payload.new);
                 }
             }
@@ -540,6 +783,32 @@ export async function uploadBanner(userId, file) {
 
     const { data } = supabase.storage
         .from('banners')
+        .getPublicUrl(fileName);
+
+    return data.publicUrl;
+}
+
+/**
+ * Upload post image
+ * @param {string} userId - User UUID
+ * @param {File|Blob} file - Image file or blob
+ * @returns {Promise<string>} Public URL
+ */
+export async function uploadPostImage(userId, file) {
+    const fileExt = file.name?.split('.').pop() || 'png';
+    const fileName = `${userId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+        .from('post-images')
+        .upload(fileName, file, { upsert: true });
+
+    if (uploadError) {
+        console.error('Error uploading post image:', uploadError);
+        throw uploadError;
+    }
+
+    const { data } = supabase.storage
+        .from('post-images')
         .getPublicUrl(fileName);
 
     return data.publicUrl;

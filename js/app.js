@@ -15,6 +15,7 @@ import {
     createUser,
     updateUserProfile,
     createPost,
+    updatePost,
     getFeedPosts,
     getUserPosts,
     getPostReplies,
@@ -29,10 +30,19 @@ import {
     unsubscribe,
     uploadAvatar,
     uploadBanner,
+    uploadPostImage,
     searchUsers,
     getAllUsers,
+    getAllRoles,
+    createRole,
+    updateRole,
+    deleteRole,
+    getUserRoles,
+    assignRoleToUser,
+    removeRoleFromUser,
     supabase
 } from './supabase.js';
+
 
 // ============================================
 // CONSTANTS
@@ -369,9 +379,10 @@ async function handleSearch(query) {
 // ============================================
 async function loadFeed() {
     elements.postsFeed.innerHTML = '<div class="loading"><div class="spinner"></div>Loading posts...</div>';
-    const posts = await getFeedPosts(20);
+    const posts = await getFeedPosts(20, currentProfile?.id);
     renderPosts(posts, elements.postsFeed);
 }
+
 
 async function loadUserPosts(userId) {
     elements.profilePosts.innerHTML = '<div class="loading"><div class="spinner"></div>Loading posts...</div>';
@@ -1000,6 +1011,57 @@ async function toggleUserShadowban(userId, isShadowbanned) {
 // ============================================
 let editingRoleId = null;
 
+async function loadAdminRoles() {
+    try {
+        const roles = await getAllRoles();
+        renderAdminRolesTable(roles);
+    } catch (error) {
+        console.error('Error loading admin roles:', error);
+    }
+}
+
+function renderAdminRolesTable(roles) {
+    if (!elements.adminRolesTable) return;
+
+    elements.adminRolesTable.innerHTML = roles.map(role => `
+        <tr data-role-id="${role.id}">
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="role-badge" style="background: ${role.bg_color}; color: ${role.text_color};">
+                        ${role.abbreviation}
+                    </span>
+                    <span style="font-weight: 600;">${escapeHtml(role.name)}</span>
+                </div>
+            </td>
+            <td>${role.abbreviation}</td>
+            <td>${role.priority}</td>
+            <td>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-ghost admin-edit-role-btn" data-role-id="${role.id}">Edit</button>
+                    <button class="btn btn-ghost admin-delete-role-btn" data-role-id="${role.id}" style="color: var(--error);">Delete</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+
+    // Add event listeners
+    elements.adminRolesTable.querySelectorAll('.admin-edit-role-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const roleId = btn.dataset.roleId;
+            const role = roles.find(r => r.id === roleId);
+            if (role) openRoleModal(role);
+        });
+    });
+
+    elements.adminRolesTable.querySelectorAll('.admin-delete-role-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to delete this role?')) {
+                await handleDeleteRole(btn.dataset.roleId);
+            }
+        });
+    });
+}
+
 function openRoleModal(role = null) {
     editingRoleId = role?.id || null;
     elements.roleModalTitle.textContent = role ? 'Edit Role' : 'Create Role';
@@ -1020,6 +1082,45 @@ function updateRolePreview() {
     elements.rolePreview.style.background = bgColor;
     elements.rolePreview.style.color = textColor;
 }
+
+async function handleSaveRole() {
+    const name = elements.roleName.value.trim();
+    const abbreviation = elements.roleAbbr.value.trim().toUpperCase();
+    const bgColor = elements.roleBgColor.value;
+    const textColor = elements.roleTextColor.value;
+    const priority = parseInt(elements.rolePriority.value) || 1;
+
+    if (!name || !abbreviation) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    try {
+        if (editingRoleId) {
+            await updateRole(editingRoleId, { name, abbreviation, bgColor, textColor, priority });
+        } else {
+            await createRole({ name, abbreviation, bgColor, textColor, priority });
+        }
+
+        elements.roleEditModal.classList.add('hidden');
+        editingRoleId = null;
+        await loadAdminRoles();
+    } catch (error) {
+        console.error('Error saving role:', error);
+        alert('Error saving role. Please try again.');
+    }
+}
+
+async function handleDeleteRole(roleId) {
+    try {
+        await deleteRole(roleId);
+        await loadAdminRoles();
+    } catch (error) {
+        console.error('Error deleting role:', error);
+        alert('Error deleting role. Please try again.');
+    }
+}
+
 
 // ============================================
 // ADMIN - VERIFICATION
@@ -1205,6 +1306,7 @@ function setupEventListeners() {
     elements.createRoleBtn?.addEventListener('click', () => openRoleModal());
     elements.roleEditClose.addEventListener('click', () => elements.roleEditModal.classList.add('hidden'));
     elements.roleEditCancel.addEventListener('click', () => elements.roleEditModal.classList.add('hidden'));
+    elements.roleEditSave.addEventListener('click', handleSaveRole);
     elements.roleName.addEventListener('input', updateRolePreview);
     elements.roleAbbr.addEventListener('input', updateRolePreview);
     elements.roleBgColor.addEventListener('input', updateRolePreview);
@@ -1218,8 +1320,14 @@ function setupEventListeners() {
             tab.classList.add('active');
             const contentId = `admin-${tab.dataset.tab}-tab`;
             document.getElementById(contentId)?.classList.remove('hidden');
+
+            // Load data for the selected tab
+            if (tab.dataset.tab === 'roles') {
+                loadAdminRoles();
+            }
         });
     });
+
 
     // Admin verification search
     elements.adminVerifySearch?.addEventListener('input', (e) => {
