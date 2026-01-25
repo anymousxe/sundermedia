@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Sunder - A modern social media platform">
+  <meta name="theme-color" content="#08080c">
   <title>Sunder</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
+
 <body>
   <!-- App Container -->
   <div id="app">
@@ -17,10 +20,18 @@
         <p class="tagline">Connect. Share. Discover.</p>
         <button id="google-signin-btn" class="btn btn-google">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
-            <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+            <path
+              d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"
+              fill="#4285F4" />
+            <path
+              d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"
+              fill="#34A853" />
+            <path
+              d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"
+              fill="#FBBC05" />
+            <path
+              d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
+              fill="#EA4335" />
           </svg>
           Sign in with Google
         </button>
@@ -47,10 +58,47 @@
       <!-- Top Navigation Bar -->
       <nav class="top-bar">
         <h1 class="nav-logo">Sunder</h1>
+
+        <!-- Search Bar -->
+        <div class="nav-center">
+          <div class="search-container">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <input type="text" id="search-input" class="search-input" placeholder="Search users...">
+            <div id="search-results" class="search-results hidden"></div>
+          </div>
+        </div>
+
         <div class="nav-links">
-          <button id="nav-home" class="nav-btn active">Home</button>
-          <button id="nav-profile" class="nav-btn">Profile</button>
-          <button id="nav-logout" class="nav-btn">Logout</button>
+          <button id="nav-home" class="nav-btn active">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L2 9h3v11h6v-6h2v6h6V9h3L12 2z" />
+            </svg>
+            <span>Home</span>
+          </button>
+          <button id="nav-profile" class="nav-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            </svg>
+            <span>Profile</span>
+          </button>
+          <button id="nav-admin" class="nav-btn admin-btn hidden">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+            </svg>
+            <span>Admin</span>
+          </button>
+          <button id="nav-logout" class="nav-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+            </svg>
+            <span>Logout</span>
+          </button>
         </div>
       </nav>
 
@@ -59,54 +107,207 @@
         <button id="load-new-posts-btn">New posts available! Click to refresh</button>
       </div>
 
-      <!-- Home Feed -->
-      <div id="home-view" class="view">
-        <div class="post-composer">
-          <textarea id="post-content" placeholder="What's on your mind?" maxlength="500"></textarea>
-          <button id="post-submit-btn" class="btn btn-primary">Post</button>
-        </div>
-        <div id="posts-feed" class="posts-feed">
-          <!-- Posts will be loaded here -->
-        </div>
-      </div>
-
-      <!-- Profile View -->
-      <div id="profile-view" class="view hidden">
-        <div class="profile-header">
-          <div id="profile-banner" class="profile-banner">
-            <button id="edit-banner-btn" class="edit-btn hidden">Edit Banner</button>
-            <input type="file" id="banner-input" accept="image/*" class="hidden">
-          </div>
-          <div class="profile-info">
-            <div class="avatar-container">
-              <img id="profile-avatar" src="" alt="Profile Picture" class="profile-avatar">
-              <button id="edit-avatar-btn" class="edit-btn hidden">Edit</button>
-              <input type="file" id="avatar-input" accept="image/*" class="hidden">
+      <!-- Main Content Area -->
+      <div class="main-content">
+        <!-- Home Feed View -->
+        <div id="home-view" class="view">
+          <!-- Twitter-style Post Composer -->
+          <div class="post-composer">
+            <img id="composer-avatar" class="composer-avatar" src="" alt="Your avatar">
+            <div class="composer-content">
+              <textarea id="post-content" placeholder="What's happening?" maxlength="500"></textarea>
+              <div id="post-image-preview" class="image-preview-container hidden"></div>
+              <div class="composer-actions">
+                <div class="composer-tools">
+                  <button type="button" class="composer-tool-btn" id="add-image-btn" title="Add image">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
+                    </svg>
+                  </button>
+                  <input type="file" id="post-image-input" accept="image/*" multiple class="hidden">
+                </div>
+                <button id="post-submit-btn" class="btn btn-primary" disabled>Post</button>
+              </div>
             </div>
-            <h2 id="profile-display-name" class="profile-name"></h2>
-            <p id="profile-username" class="profile-username"></p>
-            <p id="profile-bio" class="profile-bio"></p>
-            <button id="edit-bio-btn" class="btn btn-secondary hidden">Edit Bio</button>
-            <button id="follow-btn" class="btn btn-primary hidden">Follow</button>
-            <div class="profile-stats">
-              <span id="followers-count">0 Followers</span>
-              <span id="following-count">0 Following</span>
+          </div>
+
+          <!-- Posts Feed -->
+          <div id="posts-feed" class="posts-feed">
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading posts...
             </div>
           </div>
         </div>
-        <div id="profile-posts" class="posts-feed">
-          <!-- User's posts will be loaded here -->
+
+        <!-- Profile View -->
+        <div id="profile-view" class="view hidden">
+          <div class="profile-header">
+            <div id="profile-banner" class="profile-banner">
+              <button id="edit-banner-btn" class="edit-btn hidden">Edit Banner</button>
+              <input type="file" id="banner-input" accept="image/*" class="hidden">
+            </div>
+            <div class="profile-info">
+              <div class="avatar-container">
+                <img id="profile-avatar" src="" alt="Profile Picture" class="profile-avatar">
+                <button id="edit-avatar-btn" class="edit-btn hidden">Edit</button>
+                <input type="file" id="avatar-input" accept="image/*" class="hidden">
+              </div>
+
+              <div class="profile-header-row">
+                <div class="profile-name-section">
+                  <h2 id="profile-display-name" class="profile-name">
+                    <span class="name-text"></span>
+                    <span id="profile-verified" class="verified-badge hidden" title="Verified">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                      </svg>
+                    </span>
+                  </h2>
+                  <p id="profile-username" class="profile-username"></p>
+                </div>
+                <div class="profile-actions">
+                  <button id="edit-profile-btn" class="btn btn-secondary hidden">Edit Profile</button>
+                  <button id="follow-btn" class="btn btn-primary hidden">Follow</button>
+                </div>
+              </div>
+
+              <!-- Roles Display -->
+              <div id="profile-roles" class="profile-roles hidden"></div>
+
+              <p id="profile-bio" class="profile-bio"></p>
+
+              <div class="profile-stats">
+                <span id="followers-count" class="profile-stat">
+                  <span class="profile-stat-count">0</span>
+                  <span class="profile-stat-label">Followers</span>
+                </span>
+                <span id="following-count" class="profile-stat">
+                  <span class="profile-stat-count">0</span>
+                  <span class="profile-stat-label">Following</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div id="profile-posts" class="posts-feed">
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading posts...
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin View -->
+        <div id="admin-view" class="view admin-view hidden">
+          <div class="admin-header">
+            <h2>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+              </svg>
+              Admin Panel
+              <span class="admin-badge">ADMIN</span>
+            </h2>
+          </div>
+
+          <div class="admin-tabs">
+            <button class="admin-tab active" data-tab="users">Users</button>
+            <button class="admin-tab" data-tab="roles">Roles</button>
+            <button class="admin-tab" data-tab="verification">Verification</button>
+          </div>
+
+          <!-- Users Tab -->
+          <div id="admin-users-tab" class="admin-tab-content">
+            <div class="input-group" style="margin-bottom: 20px;">
+              <input type="text" id="admin-user-search" placeholder="Search users by username...">
+            </div>
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Username</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-table">
+                <!-- Users will be loaded here -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Roles Tab -->
+          <div id="admin-roles-tab" class="admin-tab-content hidden">
+            <button class="btn btn-primary" id="create-role-btn" style="margin-bottom: 20px;">+ Create Role</button>
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th>Abbreviation</th>
+                  <th>Priority</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-roles-table">
+                <!-- Roles will be loaded here -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Verification Tab -->
+          <div id="admin-verification-tab" class="admin-tab-content hidden">
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">Search for a user and grant/revoke their
+              verification status.</p>
+            <div class="input-group" style="margin-bottom: 20px;">
+              <input type="text" id="admin-verify-search" placeholder="Search username to verify...">
+            </div>
+            <div id="verify-user-result" class="hidden">
+              <!-- User result will appear here -->
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Bio Edit Modal -->
-      <div id="bio-modal" class="modal hidden">
+      <!-- Edit Profile Modal -->
+      <div id="edit-profile-modal" class="modal hidden">
         <div class="modal-content">
-          <h3>Edit Bio</h3>
-          <textarea id="bio-input" placeholder="Tell us about yourself..." maxlength="160"></textarea>
+          <div class="modal-header">
+            <h3>Edit Profile</h3>
+            <button class="modal-close" id="edit-profile-close">&times;</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div>
+              <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">Display
+                Name</label>
+              <div class="input-group">
+                <input type="text" id="edit-display-name" placeholder="Your display name" maxlength="50">
+              </div>
+            </div>
+
+            <div>
+              <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Username
+                <span id="username-cooldown-text" style="color: var(--accent-tertiary);"></span>
+              </label>
+              <div class="input-group">
+                <span class="input-prefix">@</span>
+                <input type="text" id="edit-username" placeholder="username" maxlength="20" pattern="[a-zA-Z0-9_]+">
+              </div>
+              <p id="edit-username-error" class="error-text hidden"></p>
+            </div>
+
+            <div>
+              <label
+                style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">Bio</label>
+              <textarea id="edit-bio" placeholder="Tell us about yourself..." maxlength="160" rows="3"></textarea>
+            </div>
+          </div>
+
           <div class="modal-actions">
-            <button id="bio-cancel-btn" class="btn btn-secondary">Cancel</button>
-            <button id="bio-save-btn" class="btn btn-primary">Save</button>
+            <button id="edit-profile-cancel" class="btn btn-secondary">Cancel</button>
+            <button id="edit-profile-save" class="btn btn-primary">Save</button>
           </div>
         </div>
       </div>
@@ -114,14 +315,110 @@
       <!-- Reply Modal -->
       <div id="reply-modal" class="modal hidden">
         <div class="modal-content">
-          <h3>Reply</h3>
+          <div class="modal-header">
+            <h3>Reply</h3>
+            <button class="modal-close" id="reply-close">&times;</button>
+          </div>
           <div id="reply-original-post" class="original-post"></div>
-          <textarea id="reply-content" placeholder="Write your reply..." maxlength="500"></textarea>
+          <textarea id="reply-content" placeholder="Write your reply..." maxlength="500" rows="4"></textarea>
+          <div id="reply-image-preview" class="image-preview-container hidden"></div>
+          <div class="composer-actions" style="border-top: none; padding-top: 0;">
+            <div class="composer-tools">
+              <button type="button" class="composer-tool-btn" id="reply-add-image-btn" title="Add image">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
+                </svg>
+              </button>
+              <input type="file" id="reply-image-input" accept="image/*" multiple class="hidden">
+            </div>
+          </div>
           <div class="modal-actions">
             <button id="reply-cancel-btn" class="btn btn-secondary">Cancel</button>
             <button id="reply-submit-btn" class="btn btn-primary">Reply</button>
           </div>
         </div>
+      </div>
+
+      <!-- Roles Modal -->
+      <div id="roles-modal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>All Roles</h3>
+            <button class="modal-close" id="roles-close">&times;</button>
+          </div>
+          <div id="roles-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- All user roles will be shown here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Create/Edit Role Modal -->
+      <div id="role-edit-modal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="role-modal-title">Create Role</h3>
+            <button class="modal-close" id="role-edit-close">&times;</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div>
+              <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">Role
+                Name</label>
+              <div class="input-group">
+                <input type="text" id="role-name" placeholder="e.g. Moderator" maxlength="30">
+              </div>
+            </div>
+
+            <div>
+              <label
+                style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">Abbreviation
+                (shown on posts)</label>
+              <div class="input-group">
+                <input type="text" id="role-abbr" placeholder="e.g. MOD" maxlength="5">
+              </div>
+            </div>
+
+            <div>
+              <label
+                style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">Background
+                Color</label>
+              <input type="color" id="role-bg-color" value="#7c5cff"
+                style="width: 100%; height: 40px; border: none; border-radius: 8px; cursor: pointer;">
+            </div>
+
+            <div>
+              <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">Text
+                Color</label>
+              <input type="color" id="role-text-color" value="#ffffff"
+                style="width: 100%; height: 40px; border: none; border-radius: 8px; cursor: pointer;">
+            </div>
+
+            <div>
+              <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">Priority
+                (higher = shows first)</label>
+              <div class="input-group">
+                <input type="number" id="role-priority" placeholder="1" min="1" max="100" value="1">
+              </div>
+            </div>
+
+            <div style="padding: 12px; background: var(--void-medium); border-radius: 8px;">
+              <label
+                style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">Preview</label>
+              <span id="role-preview" class="role-badge" style="background: #7c5cff; color: #ffffff;">ROLE</span>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button id="role-edit-cancel" class="btn btn-secondary">Cancel</button>
+            <button id="role-edit-save" class="btn btn-primary">Save Role</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Image Lightbox -->
+      <div id="lightbox" class="lightbox hidden">
+        <img id="lightbox-image" src="" alt="Full size image">
       </div>
     </div>
   </div>
@@ -129,4 +426,5 @@
   <!-- Scripts -->
   <script type="module" src="/js/app.js"></script>
 </body>
+
 </html>

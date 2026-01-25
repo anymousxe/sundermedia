@@ -1,4 +1,4 @@
-// Sunder - Main Application
+// Sunder - Main Application (Overhauled)
 import {
     signInWithGoogle,
     logout,
@@ -28,18 +28,30 @@ import {
     subscribeToNewPosts,
     unsubscribe,
     uploadAvatar,
-    uploadBanner
+    uploadBanner,
+    searchUsers,
+    getAllUsers,
+    supabase
 } from './supabase.js';
+
+// ============================================
+// CONSTANTS
+// ============================================
+const ADMIN_EMAIL = 'anymousxe.info@gmail.com';
+const USERNAME_CHANGE_COOLDOWN_DAYS = 3;
 
 // ============================================
 // STATE
 // ============================================
-let currentProfile = null; // Supabase user profile
+let currentProfile = null;
+let currentFirebaseUser = null;
 let currentView = 'home';
-let viewingProfile = null; // Profile being viewed (could be other user)
+let viewingProfile = null;
 let newPostsSubscription = null;
 let pendingNewPosts = [];
 let replyingToPost = null;
+let postImages = [];
+let replyImages = [];
 
 // ============================================
 // DOM ELEMENTS
@@ -63,20 +75,30 @@ const elements = {
     // Navigation
     navHome: document.getElementById('nav-home'),
     navProfile: document.getElementById('nav-profile'),
+    navAdmin: document.getElementById('nav-admin'),
     navLogout: document.getElementById('nav-logout'),
+
+    // Search
+    searchInput: document.getElementById('search-input'),
+    searchResults: document.getElementById('search-results'),
 
     // Views
     homeView: document.getElementById('home-view'),
     profileView: document.getElementById('profile-view'),
+    adminView: document.getElementById('admin-view'),
 
     // New Posts
     newPostsBanner: document.getElementById('new-posts-banner'),
     loadNewPostsBtn: document.getElementById('load-new-posts-btn'),
 
     // Post Composer
+    composerAvatar: document.getElementById('composer-avatar'),
     postContent: document.getElementById('post-content'),
     postSubmitBtn: document.getElementById('post-submit-btn'),
     postsFeed: document.getElementById('posts-feed'),
+    addImageBtn: document.getElementById('add-image-btn'),
+    postImageInput: document.getElementById('post-image-input'),
+    postImagePreview: document.getElementById('post-image-preview'),
 
     // Profile
     profileBanner: document.getElementById('profile-banner'),
@@ -84,28 +106,69 @@ const elements = {
     profileDisplayName: document.getElementById('profile-display-name'),
     profileUsername: document.getElementById('profile-username'),
     profileBio: document.getElementById('profile-bio'),
+    profileVerified: document.getElementById('profile-verified'),
+    profileRoles: document.getElementById('profile-roles'),
     followersCount: document.getElementById('followers-count'),
     followingCount: document.getElementById('following-count'),
     profilePosts: document.getElementById('profile-posts'),
     editBannerBtn: document.getElementById('edit-banner-btn'),
     editAvatarBtn: document.getElementById('edit-avatar-btn'),
-    editBioBtn: document.getElementById('edit-bio-btn'),
+    editProfileBtn: document.getElementById('edit-profile-btn'),
     followBtn: document.getElementById('follow-btn'),
     bannerInput: document.getElementById('banner-input'),
     avatarInput: document.getElementById('avatar-input'),
 
-    // Bio Modal
-    bioModal: document.getElementById('bio-modal'),
-    bioInput: document.getElementById('bio-input'),
-    bioCancelBtn: document.getElementById('bio-cancel-btn'),
-    bioSaveBtn: document.getElementById('bio-save-btn'),
+    // Edit Profile Modal
+    editProfileModal: document.getElementById('edit-profile-modal'),
+    editProfileClose: document.getElementById('edit-profile-close'),
+    editDisplayName: document.getElementById('edit-display-name'),
+    editUsername: document.getElementById('edit-username'),
+    editUsernameError: document.getElementById('edit-username-error'),
+    usernameCooldownText: document.getElementById('username-cooldown-text'),
+    editBio: document.getElementById('edit-bio'),
+    editProfileSave: document.getElementById('edit-profile-save'),
+    editProfileCancel: document.getElementById('edit-profile-cancel'),
 
     // Reply Modal
     replyModal: document.getElementById('reply-modal'),
+    replyClose: document.getElementById('reply-close'),
     replyOriginalPost: document.getElementById('reply-original-post'),
     replyContent: document.getElementById('reply-content'),
     replyCancelBtn: document.getElementById('reply-cancel-btn'),
-    replySubmitBtn: document.getElementById('reply-submit-btn')
+    replySubmitBtn: document.getElementById('reply-submit-btn'),
+    replyAddImageBtn: document.getElementById('reply-add-image-btn'),
+    replyImageInput: document.getElementById('reply-image-input'),
+    replyImagePreview: document.getElementById('reply-image-preview'),
+
+    // Roles Modal
+    rolesModal: document.getElementById('roles-modal'),
+    rolesClose: document.getElementById('roles-close'),
+    rolesList: document.getElementById('roles-list'),
+
+    // Admin
+    adminUsersTable: document.getElementById('admin-users-table'),
+    adminUserSearch: document.getElementById('admin-user-search'),
+    adminRolesTable: document.getElementById('admin-roles-table'),
+    createRoleBtn: document.getElementById('create-role-btn'),
+    adminVerifySearch: document.getElementById('admin-verify-search'),
+    verifyUserResult: document.getElementById('verify-user-result'),
+
+    // Role Edit Modal
+    roleEditModal: document.getElementById('role-edit-modal'),
+    roleModalTitle: document.getElementById('role-modal-title'),
+    roleEditClose: document.getElementById('role-edit-close'),
+    roleName: document.getElementById('role-name'),
+    roleAbbr: document.getElementById('role-abbr'),
+    roleBgColor: document.getElementById('role-bg-color'),
+    roleTextColor: document.getElementById('role-text-color'),
+    rolePriority: document.getElementById('role-priority'),
+    rolePreview: document.getElementById('role-preview'),
+    roleEditSave: document.getElementById('role-edit-save'),
+    roleEditCancel: document.getElementById('role-edit-cancel'),
+
+    // Lightbox
+    lightbox: document.getElementById('lightbox'),
+    lightboxImage: document.getElementById('lightbox-image')
 };
 
 // ============================================
@@ -120,9 +183,11 @@ function showView(viewName) {
     currentView = viewName;
     elements.homeView.classList.add('hidden');
     elements.profileView.classList.add('hidden');
+    elements.adminView.classList.add('hidden');
 
     elements.navHome.classList.remove('active');
     elements.navProfile.classList.remove('active');
+    elements.navAdmin.classList.remove('active');
 
     if (viewName === 'home') {
         elements.homeView.classList.remove('hidden');
@@ -130,6 +195,9 @@ function showView(viewName) {
     } else if (viewName === 'profile') {
         elements.profileView.classList.remove('hidden');
         elements.navProfile.classList.add('active');
+    } else if (viewName === 'admin') {
+        elements.adminView.classList.remove('hidden');
+        elements.navAdmin.classList.add('active');
     }
 }
 
@@ -138,9 +206,9 @@ function showView(viewName) {
 // ============================================
 async function handleAuthStateChange(firebaseUser) {
     if (!firebaseUser) {
-        // Not logged in
         showScreen('login');
         currentProfile = null;
+        currentFirebaseUser = null;
         if (newPostsSubscription) {
             unsubscribe(newPostsSubscription);
             newPostsSubscription = null;
@@ -148,17 +216,30 @@ async function handleAuthStateChange(firebaseUser) {
         return;
     }
 
+    currentFirebaseUser = firebaseUser;
+
     // Check if user has a profile in Supabase
     const profile = await getUserByFirebaseUid(firebaseUser.uid);
 
     if (!profile) {
-        // New user, needs to set username
         showScreen('username');
         return;
     }
 
-    // Existing user, go to main app
     currentProfile = profile;
+
+    // Check if user is admin
+    if (firebaseUser.email === ADMIN_EMAIL) {
+        elements.navAdmin.classList.remove('hidden');
+    } else {
+        elements.navAdmin.classList.add('hidden');
+    }
+
+    // Update composer avatar
+    if (elements.composerAvatar) {
+        elements.composerAvatar.src = profile.avatar_url || getDefaultAvatar();
+    }
+
     showScreen('main');
     showView('home');
     await loadFeed();
@@ -187,7 +268,6 @@ async function checkUsername(username) {
         return;
     }
 
-    // Check availability
     const available = await isUsernameAvailable(username);
 
     if (available) {
@@ -217,6 +297,15 @@ async function submitUsername() {
         });
 
         currentProfile = profile;
+
+        if (firebaseUser.email === ADMIN_EMAIL) {
+            elements.navAdmin.classList.remove('hidden');
+        }
+
+        if (elements.composerAvatar) {
+            elements.composerAvatar.src = profile.avatar_url || getDefaultAvatar();
+        }
+
         showScreen('main');
         showView('home');
         await loadFeed();
@@ -230,23 +319,69 @@ async function submitUsername() {
 }
 
 // ============================================
+// SEARCH
+// ============================================
+let searchTimeout = null;
+
+async function handleSearch(query) {
+    if (!query || query.length < 2) {
+        elements.searchResults.classList.add('hidden');
+        return;
+    }
+
+    try {
+        const users = await searchUsers(query);
+
+        if (users.length === 0) {
+            elements.searchResults.innerHTML = '<div class="search-result-item" style="color: var(--text-secondary);">No users found</div>';
+        } else {
+            elements.searchResults.innerHTML = users.map(user => `
+        <div class="search-result-item" data-username="${user.username}">
+          <img class="search-result-avatar" src="${user.avatar_url || getDefaultAvatar()}" alt="${user.display_name}">
+          <div class="search-result-info">
+            <span class="search-result-name">${escapeHtml(user.display_name || user.username)}</span>
+            <span class="search-result-username">@${user.username}</span>
+          </div>
+        </div>
+      `).join('');
+
+            // Add click handlers
+            elements.searchResults.querySelectorAll('.search-result-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const username = item.dataset.username;
+                    if (username) {
+                        viewProfile(username);
+                        elements.searchResults.classList.add('hidden');
+                        elements.searchInput.value = '';
+                    }
+                });
+            });
+        }
+
+        elements.searchResults.classList.remove('hidden');
+    } catch (error) {
+        console.error('Search error:', error);
+    }
+}
+
+// ============================================
 // POSTS & FEED
 // ============================================
 async function loadFeed() {
-    elements.postsFeed.innerHTML = '<div class="loading">Loading posts...</div>';
+    elements.postsFeed.innerHTML = '<div class="loading"><div class="spinner"></div>Loading posts...</div>';
     const posts = await getFeedPosts(20);
     renderPosts(posts, elements.postsFeed);
 }
 
 async function loadUserPosts(userId) {
-    elements.profilePosts.innerHTML = '<div class="loading">Loading posts...</div>';
+    elements.profilePosts.innerHTML = '<div class="loading"><div class="spinner"></div>Loading posts...</div>';
     const posts = await getUserPosts(userId, 20);
     renderPosts(posts, elements.profilePosts);
 }
 
 function renderPosts(posts, container) {
     if (posts.length === 0) {
-        container.innerHTML = '<div class="loading">No posts yet</div>';
+        container.innerHTML = '<div class="loading" style="color: var(--text-secondary);">No posts yet</div>';
         return;
     }
 
@@ -261,34 +396,78 @@ function renderPost(post, isReply = false) {
     const hasLiked = currentProfile && post.likes?.some(like => like.user_id === currentProfile.id);
     const timeAgo = getTimeAgo(new Date(post.created_at));
 
+    // Roles (show max 3)
+    const roles = user?.roles || [];
+    const displayRoles = roles.slice(0, 3);
+    const remainingRoles = roles.length - 3;
+
+    // Image handling
+    const images = post.images || [];
+    let imagesHtml = '';
+    if (images.length > 0) {
+        const gridClass = images.length === 1 ? 'single' : images.length === 2 ? 'double' : images.length === 3 ? 'triple' : 'quad';
+        imagesHtml = `
+      <div class="post-images ${gridClass}">
+        ${images.slice(0, 4).map(img => `<img class="post-image" src="${img}" alt="Post image" data-src="${img}">`).join('')}
+      </div>
+    `;
+    }
+
     return `
     <div class="post ${isReply ? 'reply' : ''}" data-post-id="${post.id}">
-      <div class="post-header">
-        <img 
-          src="${user?.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23333" width="100" height="100"/></svg>'}" 
-          alt="${user?.display_name}" 
-          class="post-avatar"
-        >
-        <div class="post-user-info">
-          <span class="post-display-name" data-username="${user?.username}">${user?.display_name || 'Unknown'}</span>
+      <img 
+        src="${user?.avatar_url || getDefaultAvatar()}" 
+        alt="${user?.display_name}" 
+        class="post-avatar"
+        data-username="${user?.username}"
+      >
+      <div class="post-main">
+        <div class="post-header">
+          <span class="post-display-name" data-username="${user?.username}">
+            ${escapeHtml(user?.display_name || 'Unknown')}
+            ${user?.is_verified ? `
+              <span class="verified-badge" title="Verified">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                </svg>
+              </span>
+            ` : ''}
+          </span>
           <span class="post-username">@${user?.username || 'unknown'}</span>
+          <span class="post-time">${timeAgo}</span>
+          ${displayRoles.length > 0 ? `
+            <div class="post-roles">
+              ${displayRoles.map(role => `
+                <span class="role-badge" style="background: ${role.bg_color}; color: ${role.text_color};">
+                  ${role.abbreviation}
+                </span>
+              `).join('')}
+              ${remainingRoles > 0 ? `<span class="role-more">+${remainingRoles}</span>` : ''}
+            </div>
+          ` : ''}
         </div>
-        <span class="post-time">${timeAgo}</span>
-      </div>
-      <div class="post-content">${escapeHtml(post.content)}</div>
-      <div class="post-actions">
-        <button class="post-action like-btn ${hasLiked ? 'liked' : ''}" data-post-id="${post.id}">
-          ♥ ${likeCount}
-        </button>
-        <button class="post-action reply-btn" data-post-id="${post.id}" data-content="${escapeHtml(post.content)}">
-          💬 ${replyCount}
-        </button>
+        <div class="post-content">${escapeHtml(post.content)}</div>
+        ${imagesHtml}
+        <div class="post-actions">
+          <button class="post-action reply-btn" data-post-id="${post.id}" data-content="${escapeHtml(post.content)}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+            </svg>
+            ${replyCount}
+          </button>
+          <button class="post-action like-btn ${hasLiked ? 'liked' : ''}" data-post-id="${post.id}">
+            <svg viewBox="0 0 24 24" fill="${hasLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            ${likeCount}
+          </button>
+        </div>
       </div>
     </div>
   `;
 }
 
-async function attachPostEventListeners(container) {
+function attachPostEventListeners(container) {
     // Like buttons
     container.querySelectorAll('.like-btn').forEach(btn => {
         btn.addEventListener('click', handleLike);
@@ -300,10 +479,18 @@ async function attachPostEventListeners(container) {
     });
 
     // Profile links
-    container.querySelectorAll('.post-display-name').forEach(name => {
-        name.addEventListener('click', () => {
-            const username = name.dataset.username;
+    container.querySelectorAll('.post-display-name, .post-avatar').forEach(el => {
+        el.addEventListener('click', () => {
+            const username = el.dataset.username;
             if (username) viewProfile(username);
+        });
+    });
+
+    // Image lightbox
+    container.querySelectorAll('.post-image').forEach(img => {
+        img.addEventListener('click', () => {
+            elements.lightboxImage.src = img.dataset.src;
+            elements.lightbox.classList.remove('hidden');
         });
     });
 }
@@ -325,8 +512,10 @@ async function handleLike(e) {
         }
 
         // Update count
-        const currentCount = parseInt(btn.textContent.replace('♥ ', '')) || 0;
-        btn.textContent = `♥ ${isLiked ? currentCount - 1 : currentCount + 1}`;
+        const svg = btn.querySelector('svg');
+        const currentCount = parseInt(btn.textContent.trim()) || 0;
+        btn.innerHTML = `${svg.outerHTML} ${isLiked ? currentCount - 1 : currentCount + 1}`;
+        if (!isLiked) btn.classList.add('liked');
     } catch (error) {
         console.error('Error toggling like:', error);
     }
@@ -337,6 +526,9 @@ function handleReplyClick(e) {
     replyingToPost = btn.dataset.postId;
     elements.replyOriginalPost.textContent = btn.dataset.content;
     elements.replyContent.value = '';
+    replyImages = [];
+    elements.replyImagePreview.innerHTML = '';
+    elements.replyImagePreview.classList.add('hidden');
     elements.replyModal.classList.remove('hidden');
 }
 
@@ -347,8 +539,12 @@ async function submitPost() {
     elements.postSubmitBtn.disabled = true;
 
     try {
-        const post = await createPost(currentProfile.id, content);
+        const post = await createPost(currentProfile.id, content, null, postImages);
         elements.postContent.value = '';
+        postImages = [];
+        elements.postImagePreview.innerHTML = '';
+        elements.postImagePreview.classList.add('hidden');
+        elements.postSubmitBtn.disabled = true;
 
         // Prepend new post to feed
         const postHtml = renderPost(post);
@@ -356,8 +552,9 @@ async function submitPost() {
         attachPostEventListeners(elements.postsFeed);
     } catch (error) {
         console.error('Error creating post:', error);
+        alert('Error creating post. Please try again.');
     } finally {
-        elements.postSubmitBtn.disabled = false;
+        elements.postSubmitBtn.disabled = !elements.postContent.value.trim();
     }
 }
 
@@ -368,11 +565,11 @@ async function submitReply() {
     elements.replySubmitBtn.disabled = true;
 
     try {
-        await createPost(currentProfile.id, content, replyingToPost);
+        await createPost(currentProfile.id, content, replyingToPost, replyImages);
         elements.replyModal.classList.add('hidden');
         replyingToPost = null;
+        replyImages = [];
 
-        // Refresh feed to show reply
         if (currentView === 'home') {
             await loadFeed();
         }
@@ -380,6 +577,69 @@ async function submitReply() {
         console.error('Error creating reply:', error);
     } finally {
         elements.replySubmitBtn.disabled = false;
+    }
+}
+
+// ============================================
+// IMAGE HANDLING
+// ============================================
+function handleImageSelect(input, previewContainer, imagesArray) {
+    const files = Array.from(input.files);
+
+    files.forEach(file => {
+        if (file.type.startsWith('image/') && imagesArray.length < 4) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagesArray.push(e.target.result);
+                updateImagePreview(previewContainer, imagesArray);
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    input.value = '';
+}
+
+function updateImagePreview(container, imagesArray) {
+    if (imagesArray.length === 0) {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+    }
+
+    container.classList.remove('hidden');
+    container.innerHTML = imagesArray.map((img, index) => `
+    <div class="image-preview">
+      <img src="${img}" alt="Preview">
+      <button class="image-preview-remove" data-index="${index}">&times;</button>
+    </div>
+  `).join('');
+
+    container.querySelectorAll('.image-preview-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = parseInt(btn.dataset.index);
+            imagesArray.splice(index, 1);
+            updateImagePreview(container, imagesArray);
+        });
+    });
+}
+
+// Paste image support
+function handlePaste(e, imagesArray, previewContainer) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+        if (item.type.startsWith('image/') && imagesArray.length < 4) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imagesArray.push(event.target.result);
+                updateImagePreview(previewContainer, imagesArray);
+            };
+            reader.readAsDataURL(file);
+        }
     }
 }
 
@@ -392,7 +652,6 @@ function setupRealtimeSubscription() {
     }
 
     newPostsSubscription = subscribeToNewPosts((newPost) => {
-        // Don't show notification for own posts
         if (newPost.user_id === currentProfile?.id) return;
 
         pendingNewPosts.push(newPost);
@@ -429,17 +688,67 @@ async function viewProfile(username) {
 async function renderProfile(profile) {
     const isOwnProfile = profile.id === currentProfile?.id;
 
-    // Set profile data
+    // Set banner
     if (profile.banner_url) {
         elements.profileBanner.style.backgroundImage = `url(${profile.banner_url})`;
     } else {
         elements.profileBanner.style.backgroundImage = '';
     }
 
-    elements.profileAvatar.src = profile.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23333" width="100" height="100"/></svg>';
-    elements.profileDisplayName.textContent = profile.display_name || profile.username;
+    // Set avatar
+    elements.profileAvatar.src = profile.avatar_url || getDefaultAvatar();
+
+    // Set name and username
+    const nameText = elements.profileDisplayName.querySelector('.name-text');
+    if (nameText) {
+        nameText.textContent = profile.display_name || profile.username;
+    } else {
+        elements.profileDisplayName.innerHTML = `
+      <span class="name-text">${escapeHtml(profile.display_name || profile.username)}</span>
+      ${profile.is_verified ? `
+        <span class="verified-badge" title="Verified">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+          </svg>
+        </span>
+      ` : ''}
+    `;
+    }
+
+    // Verification badge
+    if (profile.is_verified) {
+        elements.profileVerified?.classList.remove('hidden');
+    } else {
+        elements.profileVerified?.classList.add('hidden');
+    }
+
     elements.profileUsername.textContent = `@${profile.username}`;
     elements.profileBio.textContent = profile.bio || 'No bio yet';
+
+    // Roles
+    const roles = profile.roles || [];
+    if (roles.length > 0) {
+        const displayRoles = roles.slice(0, 3);
+        const remaining = roles.length - 3;
+
+        elements.profileRoles.innerHTML = displayRoles.map(role => `
+      <span class="role-badge" style="background: ${role.bg_color}; color: ${role.text_color};">
+        ${role.name}
+      </span>
+    `).join('') + (remaining > 0 ? `
+      <span class="role-more" id="view-all-roles" data-user-id="${profile.id}">+${remaining} more</span>
+    ` : '');
+
+        elements.profileRoles.classList.remove('hidden');
+
+        // Add click handler for "view all roles"
+        const viewAllBtn = elements.profileRoles.querySelector('#view-all-roles');
+        if (viewAllBtn) {
+            viewAllBtn.addEventListener('click', () => showAllRoles(roles));
+        }
+    } else {
+        elements.profileRoles.classList.add('hidden');
+    }
 
     // Get follow counts
     const [followers, following] = await Promise.all([
@@ -447,13 +756,13 @@ async function renderProfile(profile) {
         getFollowingCount(profile.id)
     ]);
 
-    elements.followersCount.textContent = `${followers} Followers`;
-    elements.followingCount.textContent = `${following} Following`;
+    elements.followersCount.innerHTML = `<span class="profile-stat-count">${followers}</span><span class="profile-stat-label">Followers</span>`;
+    elements.followingCount.innerHTML = `<span class="profile-stat-count">${following}</span><span class="profile-stat-label">Following</span>`;
 
-    // Show/hide edit buttons based on ownership
+    // Show/hide buttons based on ownership
     elements.editBannerBtn.classList.toggle('hidden', !isOwnProfile);
     elements.editAvatarBtn.classList.toggle('hidden', !isOwnProfile);
-    elements.editBioBtn.classList.toggle('hidden', !isOwnProfile);
+    elements.editProfileBtn.classList.toggle('hidden', !isOwnProfile);
     elements.followBtn.classList.toggle('hidden', isOwnProfile);
 
     // Set follow button state
@@ -462,6 +771,19 @@ async function renderProfile(profile) {
         elements.followBtn.textContent = isFollowingUser ? 'Unfollow' : 'Follow';
         elements.followBtn.dataset.following = isFollowingUser;
     }
+}
+
+function showAllRoles(roles) {
+    elements.rolesList.innerHTML = roles.map(role => `
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--void-medium); border-radius: 8px;">
+      <span class="role-badge" style="background: ${role.bg_color}; color: ${role.text_color};">
+        ${role.abbreviation}
+      </span>
+      <span style="font-weight: 600;">${role.name}</span>
+    </div>
+  `).join('');
+
+    elements.rolesModal.classList.remove('hidden');
 }
 
 async function toggleFollow() {
@@ -479,9 +801,8 @@ async function toggleFollow() {
         elements.followBtn.textContent = wasFollowing ? 'Follow' : 'Unfollow';
         elements.followBtn.dataset.following = !wasFollowing;
 
-        // Update follower count
         const followers = await getFollowerCount(viewingProfile.id);
-        elements.followersCount.textContent = `${followers} Followers`;
+        elements.followersCount.innerHTML = `<span class="profile-stat-count">${followers}</span><span class="profile-stat-label">Followers</span>`;
     } catch (error) {
         console.error('Error toggling follow:', error);
     }
@@ -490,6 +811,87 @@ async function toggleFollow() {
 // ============================================
 // PROFILE EDITING
 // ============================================
+function openEditProfileModal() {
+    if (!currentProfile) return;
+
+    elements.editDisplayName.value = currentProfile.display_name || '';
+    elements.editUsername.value = currentProfile.username || '';
+    elements.editBio.value = currentProfile.bio || '';
+    elements.editUsernameError.classList.add('hidden');
+
+    // Check username change cooldown
+    const lastChange = currentProfile.username_changed_at;
+    if (lastChange) {
+        const daysSince = (Date.now() - new Date(lastChange).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSince < USERNAME_CHANGE_COOLDOWN_DAYS) {
+            const daysLeft = Math.ceil(USERNAME_CHANGE_COOLDOWN_DAYS - daysSince);
+            elements.usernameCooldownText.textContent = `(can change in ${daysLeft} day${daysLeft > 1 ? 's' : ''})`;
+            elements.editUsername.disabled = true;
+        } else {
+            elements.usernameCooldownText.textContent = '';
+            elements.editUsername.disabled = false;
+        }
+    } else {
+        elements.usernameCooldownText.textContent = '';
+        elements.editUsername.disabled = false;
+    }
+
+    elements.editProfileModal.classList.remove('hidden');
+}
+
+async function saveProfile() {
+    if (!currentProfile) return;
+
+    const displayName = elements.editDisplayName.value.trim();
+    const username = elements.editUsername.value.trim().toLowerCase();
+    const bio = elements.editBio.value.trim();
+
+    const updates = {};
+
+    if (displayName !== currentProfile.display_name) {
+        updates.display_name = displayName;
+    }
+
+    if (bio !== currentProfile.bio) {
+        updates.bio = bio;
+    }
+
+    // Username change (with cooldown check)
+    if (username !== currentProfile.username && !elements.editUsername.disabled) {
+        // Check availability
+        const available = await isUsernameAvailable(username);
+        if (!available) {
+            elements.editUsernameError.textContent = 'Username is already taken';
+            elements.editUsernameError.classList.remove('hidden');
+            return;
+        }
+
+        if (!/^[a-zA-Z0-9_]+$/.test(username) || username.length < 3) {
+            elements.editUsernameError.textContent = 'Invalid username format';
+            elements.editUsernameError.classList.remove('hidden');
+            return;
+        }
+
+        updates.username = username;
+        updates.username_changed_at = new Date().toISOString();
+    }
+
+    if (Object.keys(updates).length === 0) {
+        elements.editProfileModal.classList.add('hidden');
+        return;
+    }
+
+    try {
+        const updated = await updateUserProfile(currentProfile.id, updates);
+        currentProfile = { ...currentProfile, ...updated };
+        await renderProfile(currentProfile);
+        elements.editProfileModal.classList.add('hidden');
+    } catch (error) {
+        console.error('Error saving profile:', error);
+        alert('Error saving profile. Please try again.');
+    }
+}
+
 async function handleAvatarUpload(e) {
     const file = e.target.files[0];
     if (!file || !currentProfile) return;
@@ -499,6 +901,9 @@ async function handleAvatarUpload(e) {
         await updateUserProfile(currentProfile.id, { avatar_url: url });
         currentProfile.avatar_url = url;
         elements.profileAvatar.src = url;
+        if (elements.composerAvatar) {
+            elements.composerAvatar.src = url;
+        }
     } catch (error) {
         console.error('Error uploading avatar:', error);
         alert('Error uploading avatar. Please try again.');
@@ -520,23 +925,150 @@ async function handleBannerUpload(e) {
     }
 }
 
-function showBioModal() {
-    elements.bioInput.value = currentProfile?.bio || '';
-    elements.bioModal.classList.remove('hidden');
+// ============================================
+// ADMIN PANEL
+// ============================================
+async function loadAdminUsers() {
+    try {
+        const users = await getAllUsers();
+        renderAdminUsersTable(users);
+    } catch (error) {
+        console.error('Error loading admin users:', error);
+    }
 }
 
-async function saveBio() {
-    const bio = elements.bioInput.value.trim();
-    if (!currentProfile) return;
+function renderAdminUsersTable(users) {
+    elements.adminUsersTable.innerHTML = users.map(user => `
+    <tr data-user-id="${user.id}">
+      <td>
+        <div class="admin-user-cell">
+          <img class="admin-user-avatar" src="${user.avatar_url || getDefaultAvatar()}" alt="${user.display_name}">
+          <div>
+            <div style="font-weight: 600;">${escapeHtml(user.display_name || user.username)}</div>
+          </div>
+        </div>
+      </td>
+      <td>@${user.username}</td>
+      <td>
+        ${user.is_suspended ? '<span class="status-badge suspended">Suspended</span>' :
+            user.is_shadowbanned ? '<span class="status-badge shadowbanned">Shadowbanned</span>' :
+                '<span class="status-badge active">Active</span>'}
+      </td>
+      <td>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-ghost admin-suspend-btn" data-user-id="${user.id}" data-suspended="${user.is_suspended}">
+            ${user.is_suspended ? 'Unsuspend' : 'Suspend'}
+          </button>
+          <button class="btn btn-ghost admin-shadowban-btn" data-user-id="${user.id}" data-shadowbanned="${user.is_shadowbanned}">
+            ${user.is_shadowbanned ? 'Un-shadowban' : 'Shadowban'}
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
 
+    // Add event listeners
+    elements.adminUsersTable.querySelectorAll('.admin-suspend-btn').forEach(btn => {
+        btn.addEventListener('click', () => toggleUserSuspend(btn.dataset.userId, btn.dataset.suspended === 'true'));
+    });
+
+    elements.adminUsersTable.querySelectorAll('.admin-shadowban-btn').forEach(btn => {
+        btn.addEventListener('click', () => toggleUserShadowban(btn.dataset.userId, btn.dataset.shadowbanned === 'true'));
+    });
+}
+
+async function toggleUserSuspend(userId, isSuspended) {
     try {
-        await updateUserProfile(currentProfile.id, { bio });
-        currentProfile.bio = bio;
-        elements.profileBio.textContent = bio || 'No bio yet';
-        elements.bioModal.classList.add('hidden');
+        await updateUserProfile(userId, { is_suspended: !isSuspended });
+        await loadAdminUsers();
     } catch (error) {
-        console.error('Error saving bio:', error);
+        console.error('Error toggling suspend:', error);
     }
+}
+
+async function toggleUserShadowban(userId, isShadowbanned) {
+    try {
+        await updateUserProfile(userId, { is_shadowbanned: !isShadowbanned });
+        await loadAdminUsers();
+    } catch (error) {
+        console.error('Error toggling shadowban:', error);
+    }
+}
+
+// ============================================
+// ADMIN - ROLES
+// ============================================
+let editingRoleId = null;
+
+function openRoleModal(role = null) {
+    editingRoleId = role?.id || null;
+    elements.roleModalTitle.textContent = role ? 'Edit Role' : 'Create Role';
+    elements.roleName.value = role?.name || '';
+    elements.roleAbbr.value = role?.abbreviation || '';
+    elements.roleBgColor.value = role?.bg_color || '#7c5cff';
+    elements.roleTextColor.value = role?.text_color || '#ffffff';
+    elements.rolePriority.value = role?.priority || 1;
+    updateRolePreview();
+    elements.roleEditModal.classList.remove('hidden');
+}
+
+function updateRolePreview() {
+    const abbr = elements.roleAbbr.value || 'ROLE';
+    const bgColor = elements.roleBgColor.value;
+    const textColor = elements.roleTextColor.value;
+    elements.rolePreview.textContent = abbr.toUpperCase();
+    elements.rolePreview.style.background = bgColor;
+    elements.rolePreview.style.color = textColor;
+}
+
+// ============================================
+// ADMIN - VERIFICATION
+// ============================================
+async function searchUserForVerification(query) {
+    if (!query || query.length < 2) {
+        elements.verifyUserResult.classList.add('hidden');
+        return;
+    }
+
+    const user = await getUserByUsername(query.replace('@', ''));
+
+    if (!user) {
+        elements.verifyUserResult.innerHTML = '<p style="color: var(--text-secondary);">User not found</p>';
+        elements.verifyUserResult.classList.remove('hidden');
+        return;
+    }
+
+    elements.verifyUserResult.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: var(--void-medium); border-radius: 12px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img src="${user.avatar_url || getDefaultAvatar()}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">
+        <div>
+          <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
+            ${escapeHtml(user.display_name || user.username)}
+            ${user.is_verified ? '<span class="verified-badge"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></span>' : ''}
+          </div>
+          <div style="color: var(--text-secondary);">@${user.username}</div>
+        </div>
+      </div>
+      <button class="btn ${user.is_verified ? 'btn-danger' : 'btn-primary'}" id="toggle-verify-btn" data-user-id="${user.id}" data-verified="${user.is_verified}">
+        ${user.is_verified ? 'Remove Verification' : 'Verify User'}
+      </button>
+    </div>
+  `;
+    elements.verifyUserResult.classList.remove('hidden');
+
+    document.getElementById('toggle-verify-btn').addEventListener('click', async (e) => {
+        const userId = e.target.dataset.userId;
+        const isVerified = e.target.dataset.verified === 'true';
+
+        try {
+            await updateUserProfile(userId, { is_verified: !isVerified });
+            // Refresh the search
+            await searchUserForVerification(query);
+        } catch (error) {
+            console.error('Error toggling verification:', error);
+        }
+    });
 }
 
 // ============================================
@@ -557,6 +1089,10 @@ function getTimeAgo(date) {
     if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`;
 
     return date.toLocaleDateString();
+}
+
+function getDefaultAvatar() {
+    return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23252533" width="100" height="100"/><circle cx="50" cy="35" r="20" fill="%23454560"/><ellipse cx="50" cy="85" rx="35" ry="25" fill="%23454560"/></svg>';
 }
 
 // ============================================
@@ -585,41 +1121,125 @@ function setupEventListeners() {
             viewProfile(currentProfile.username);
         }
     });
+    elements.navAdmin.addEventListener('click', () => {
+        if (currentFirebaseUser?.email === ADMIN_EMAIL) {
+            showView('admin');
+            loadAdminUsers();
+        }
+    });
     elements.navLogout.addEventListener('click', logout);
+
+    // Search
+    elements.searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            handleSearch(e.target.value.trim());
+        }, 300);
+    });
+
+    elements.searchInput.addEventListener('focus', () => {
+        if (elements.searchInput.value.trim().length >= 2) {
+            elements.searchResults.classList.remove('hidden');
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-container')) {
+            elements.searchResults.classList.add('hidden');
+        }
+    });
 
     // New posts
     elements.loadNewPostsBtn.addEventListener('click', loadNewPosts);
 
     // Post composer
+    elements.postContent.addEventListener('input', () => {
+        elements.postSubmitBtn.disabled = !elements.postContent.value.trim();
+    });
     elements.postSubmitBtn.addEventListener('click', submitPost);
+
+    // Post images
+    elements.addImageBtn.addEventListener('click', () => elements.postImageInput.click());
+    elements.postImageInput.addEventListener('change', () => {
+        handleImageSelect(elements.postImageInput, elements.postImagePreview, postImages);
+    });
+    elements.postContent.addEventListener('paste', (e) => {
+        handlePaste(e, postImages, elements.postImagePreview);
+    });
 
     // Profile editing
     elements.editAvatarBtn.addEventListener('click', () => elements.avatarInput.click());
     elements.editBannerBtn.addEventListener('click', () => elements.bannerInput.click());
     elements.avatarInput.addEventListener('change', handleAvatarUpload);
     elements.bannerInput.addEventListener('change', handleBannerUpload);
-    elements.editBioBtn.addEventListener('click', showBioModal);
+    elements.editProfileBtn.addEventListener('click', openEditProfileModal);
     elements.followBtn.addEventListener('click', toggleFollow);
 
-    // Bio modal
-    elements.bioCancelBtn.addEventListener('click', () => elements.bioModal.classList.add('hidden'));
-    elements.bioSaveBtn.addEventListener('click', saveBio);
+    // Edit profile modal
+    elements.editProfileClose.addEventListener('click', () => elements.editProfileModal.classList.add('hidden'));
+    elements.editProfileCancel.addEventListener('click', () => elements.editProfileModal.classList.add('hidden'));
+    elements.editProfileSave.addEventListener('click', saveProfile);
 
     // Reply modal
+    elements.replyClose.addEventListener('click', () => {
+        elements.replyModal.classList.add('hidden');
+        replyingToPost = null;
+    });
     elements.replyCancelBtn.addEventListener('click', () => {
         elements.replyModal.classList.add('hidden');
         replyingToPost = null;
     });
     elements.replySubmitBtn.addEventListener('click', submitReply);
+    elements.replyAddImageBtn.addEventListener('click', () => elements.replyImageInput.click());
+    elements.replyImageInput.addEventListener('change', () => {
+        handleImageSelect(elements.replyImageInput, elements.replyImagePreview, replyImages);
+    });
+    elements.replyContent.addEventListener('paste', (e) => {
+        handlePaste(e, replyImages, elements.replyImagePreview);
+    });
+
+    // Roles modal
+    elements.rolesClose.addEventListener('click', () => elements.rolesModal.classList.add('hidden'));
+
+    // Role edit modal
+    elements.createRoleBtn?.addEventListener('click', () => openRoleModal());
+    elements.roleEditClose.addEventListener('click', () => elements.roleEditModal.classList.add('hidden'));
+    elements.roleEditCancel.addEventListener('click', () => elements.roleEditModal.classList.add('hidden'));
+    elements.roleName.addEventListener('input', updateRolePreview);
+    elements.roleAbbr.addEventListener('input', updateRolePreview);
+    elements.roleBgColor.addEventListener('input', updateRolePreview);
+    elements.roleTextColor.addEventListener('input', updateRolePreview);
+
+    // Admin tabs
+    document.querySelectorAll('.admin-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.add('hidden'));
+            tab.classList.add('active');
+            const contentId = `admin-${tab.dataset.tab}-tab`;
+            document.getElementById(contentId)?.classList.remove('hidden');
+        });
+    });
+
+    // Admin verification search
+    elements.adminVerifySearch?.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            searchUserForVerification(e.target.value.trim());
+        }, 300);
+    });
+
+    // Lightbox
+    elements.lightbox.addEventListener('click', () => {
+        elements.lightbox.classList.add('hidden');
+    });
 
     // Close modals on backdrop click
-    elements.bioModal.addEventListener('click', (e) => {
-        if (e.target === elements.bioModal) elements.bioModal.classList.add('hidden');
-    });
-    elements.replyModal.addEventListener('click', (e) => {
-        if (e.target === elements.replyModal) {
-            elements.replyModal.classList.add('hidden');
-            replyingToPost = null;
+    [elements.editProfileModal, elements.replyModal, elements.rolesModal, elements.roleEditModal].forEach(modal => {
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.add('hidden');
+            });
         }
     });
 }
@@ -632,5 +1252,4 @@ function init() {
     onAuthChange(handleAuthStateChange);
 }
 
-// Start the app
 init();

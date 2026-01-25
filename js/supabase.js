@@ -111,7 +111,8 @@ export async function createUser(userData) {
         .single();
 
     if (error) {
-        console.error('Error creating user:', error);
+        console.error('Error creating user:', error.message, error.details, error.hint);
+        alert('Table Error: ' + error.message);
         throw error;
     }
     return data;
@@ -137,6 +138,44 @@ export async function updateUserProfile(userId, updates) {
     }
     return data;
 }
+
+/**
+ * Search users by username or display name
+ * @param {string} query - Search query
+ * @param {number} limit - Max results
+ * @returns {Promise<Array>} Matching users
+ */
+export async function searchUsers(query, limit = 10) {
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+        .limit(limit);
+
+    if (error) {
+        console.error('Error searching users:', error);
+        return [];
+    }
+    return data || [];
+}
+
+/**
+ * Get all users (for admin panel)
+ * @returns {Promise<Array>} All users
+ */
+export async function getAllUsers() {
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching all users:', error);
+        return [];
+    }
+    return data || [];
+}
+
 
 // ============================================
 // POST OPERATIONS
