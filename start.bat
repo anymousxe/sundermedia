@@ -1,0 +1,3 @@
+@echo off
+echo Starting Sunder Media development server...
+npm run dev

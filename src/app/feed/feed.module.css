@@ -1,0 +1,61 @@
+.loadingContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.container {
+    min-height: 100vh;
+}
+
+.nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 32px;
+    margin: 16px;
+    position: sticky;
+    top: 16px;
+    z-index: 100;
+}
+
+.nav h1 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.navRight {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.username {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.main {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.card {
+    padding: 32px;
+}
+
+.card h2 {
+    font-size: 28px;
+    margin: 0;
+}
+
+.card ul {
+    padding-left: 24px;
+}
+
+.card li {
+    margin-bottom: 8px;
+}
